@@ -1,0 +1,2 @@
+cd project-ec2-flask/jmeter/
+jmeter -n -t flask_load_test.jmx -l result.jtl -e -o report/
