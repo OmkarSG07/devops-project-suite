@@ -1,0 +1,60 @@
+- name: Setup Docker & Deploy Flask App
+  hosts: all
+  become: yes
+  tasks:
+    - name: Install required packages
+      apt:
+        name: [ "apt-transport-https", "ca-certificates", "curl", "software-properties-common" ]
+        state: present
+        update_cache: yes
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable
+        state: present
+
+    - name: Install Docker
+      apt:
+        name: docker-ce
+        state: present
+        update_cache: yes
+
+    - name: Ensure Docker is running
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Copy app folder to EC2
+      copy:
+        src: ../flask-app/
+        dest: /home/ubuntu/flask-app/
+        owner: ubuntu
+        group: ubuntu
+        mode: 0755
+
+    - name: Build Docker image
+      command: docker build -t flask-image /home/ubuntu/flask-app/
+
+    - name: Run container
+      command: docker run -d -p 80:80 --name flask-container flask-image
+      ignore_errors: yes  # allows re-run if container already exists
+
+- name: Copy monitoring files
+  copy:
+    src: ../monitoring/
+    dest: /home/ubuntu/monitoring/
+    owner: ubuntu
+    group: ubuntu
+    mode: 0755
+
+- name: Run Docker Compose for monitoring stack
+  command: docker-compose up -d
+  args:
+    chdir: /home/ubuntu/monitoring/
+  ignore_errors: yes  # allows re-run if already running
