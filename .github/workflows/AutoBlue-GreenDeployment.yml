@@ -1,0 +1,85 @@
+name: Auto Blue-Green Deployment
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      BLUE_IP: ${{ secrets.BLUE_SERVER_IP }}
+      GREEN_IP: ${{ secrets.GREEN_SERVER_IP }}
+      USER: ${{ secrets.EC2_USER }}
+      KEY: ${{ secrets.SSH_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Determine Active Target Group
+      id: check-active
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      run: |
+        TARGET=$(aws elbv2 describe-listeners \
+          --listener-arn "${{ secrets.ALB_LISTENER_ARN }}" \
+          --query 'Listeners[0].DefaultActions[0].TargetGroupArn' \
+          --output text --region "$AWS_REGION")
+
+        echo "Current Target Group: $TARGET"
+
+        if [ "$TARGET" = "${{ secrets.TARGET_GROUP_BLUE_ARN }}" ]; then
+          echo "ACTIVE_ENV=blue" >> $GITHUB_ENV
+          echo "DEPLOY_ENV=green" >> $GITHUB_ENV
+          echo "TARGET_GROUP=${{ secrets.TARGET_GROUP_GREEN_ARN }}" >> $GITHUB_ENV
+          echo "DEPLOY_IP=${{ secrets.GREEN_SERVER_IP }}" >> $GITHUB_ENV
+        else
+          echo "ACTIVE_ENV=green" >> $GITHUB_ENV
+          echo "DEPLOY_ENV=blue" >> $GITHUB_ENV
+          echo "TARGET_GROUP=${{ secrets.TARGET_GROUP_BLUE_ARN }}" >> $GITHUB_ENV
+          echo "DEPLOY_IP=${{ secrets.BLUE_SERVER_IP }}" >> $GITHUB_ENV
+        fi
+
+    - name: Deploy to Non-Live Instance
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ env.DEPLOY_IP }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.SSH_KEY }}
+        script: |
+          docker stop flask-container || true
+          docker rm flask-container || true
+          rm -rf flask-app || true
+          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} flask-app
+          cd flask-app/project-ec2-flask/flask-app
+          docker build -t flask-image .
+          docker run -d -p 80:80 --name flask-container flask-image
+
+    - name: Health Check
+      run: |
+        for i in {1..5}; do
+          if curl -s --head "http://${{ env.DEPLOY_IP }}" | grep "200 OK" > /dev/null; then
+            echo "✅ Health check passed."
+            exit 0
+          else
+            echo "🔁 Retrying... ($i)"
+            sleep 5
+          fi
+        done
+        echo "❌ Health check failed."
+        exit 1
+
+    - name: Switch ALB Traffic
+      if: success()
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      run: |
+        aws elbv2 modify-listener \
+          --listener-arn ${{ secrets.ALB_LISTENER_ARN }} \
+          --region $AWS_REGION \
+          --default-actions Type=forward,TargetGroupArn=$TARGET_GROUP
+
