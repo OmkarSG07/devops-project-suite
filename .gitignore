@@ -1,1 +1,83 @@
+# ====================
+# Python / Flask
+# ====================
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+.env/
+*.sqlite3
+*.log
+
+# Flask uploads (if any)
+static/uploads/
+
+# ====================
+# Docker
+# ====================
+*.log
+docker-compose.override.yml
+**/Dockerfile.*.swp
+**/Dockerfile.swp
+
+# ====================
+# Ansible
+# ====================
+# Ignore facts cache, logs, and temporary files
+.fact_cache/
+*.retry
+*.log
+*.retry
+*.vault_pass
+
+# ====================
+# Terraform
+# ====================
+*.tfstate
+*.tfstate.backup
+*.tfvars
 .terraform/
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.lock.hcl
+
+# ====================
+# JMeter
+# ====================
+*.jtl
+*.log
+*.bak
+*.backup
+*.tmp
+*.csv
+*.properties
+
+# ====================
+# Grafana / Prometheus
+# ====================
+/grafana/data/
+/prometheus/data/
+*.db
+*.log
+
+# ====================
+# Editors and OS files
+# ====================
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ====================
+# Secrets & Credentials
+# ====================
+*.pem
+*.key
+*.crt
+.env
