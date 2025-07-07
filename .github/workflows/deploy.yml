@@ -20,17 +20,17 @@ jobs:
 
     - name: Install dependencies
       run: |
-        cd flask-app
+        cd project-ec2-flask/flask-app
         pip install -r requirements.txt
 
     - name: Run app test (basic import check)
       run: |
-        cd flask-app
+        cd project-ec2-flask/flask-app
         python -c "import app"
 
     - name: Build Docker Image
       run: |
-        cd flask-app
+        cd project-ec2-flask/flask-app
         docker build -t flask-image .
 
     # Optional: Push to DockerHub
@@ -56,7 +56,7 @@ jobs:
           docker rm flask-container || true
           rm -rf flask-app || true
           git clone https://github.com/${{ github.repository }}.git flask-app
-          cd flask-app/flask-app
+          cd ~/project-ec2-flask/flask-app
           docker build -t flask-image .
           docker run -d -p 80:80 --name flask-container flask-image
 
@@ -71,6 +71,6 @@ jobs:
           docker rm flask-container || true
           rm -rf flask-app || true
           git clone https://github.com/${{ github.repository }}.git flask-app
-          cd flask-app/flask-app
+          cd ~/project-ec2-flask/flask-app
           docker build -t flask-image .
           docker run -d -p 80:80 --name flask-container flask-image
