@@ -29,6 +29,15 @@
         name: docker
         state: started
         enabled: yes
+    
+    - name : Install Docker Compose
+      get_url:
+        url: https://github.com/docker/compose/releases/download/v2.20.2/docker-compose-linux-x86_64
+        dest: /usr/local/bin/docker-compose
+        mode: '0755'
+
+    - name: Verify docker-compose installation
+      command: docker-compose --version 
 
     - name: Copy app folder to EC2
       copy:
@@ -41,20 +50,24 @@
     - name: Build Docker image
       command: docker build -t flask-image /home/ubuntu/flask-app/
 
+    - name: Remove existing container if it exists
+      command: docker rm -f flask-container
+      ignore_errors: yes  # allows re-run if container does not exist
+
     - name: Run container
       command: docker run -d -p 80:80 --name flask-container flask-image
-      ignore_errors: yes  # allows re-run if container already exists
+      # ignore_errors: yes  # allows re-run if container already exists
 
-- name: Copy monitoring files
-  copy:
-    src: ../monitoring/
-    dest: /home/ubuntu/monitoring/
-    owner: ubuntu
-    group: ubuntu
-    mode: 0755
+    - name: Copy monitoring files
+      copy:
+        src: ../monitoring/
+        dest: /home/ubuntu/monitoring/
+        owner: ubuntu
+        group: ubuntu
+        mode: 0755
 
-- name: Run Docker Compose for monitoring stack
-  command: docker-compose up -d
-  args:
-    chdir: /home/ubuntu/monitoring/
-  ignore_errors: yes  # allows re-run if already running
+    - name: Run Docker Compose for monitoring stack
+      command: docker-compose up -d
+      args:
+        chdir: /home/ubuntu/monitoring/
+      ignore_errors: yes  # allows re-run if already running

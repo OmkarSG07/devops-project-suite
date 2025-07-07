@@ -4,8 +4,14 @@ resource "aws_vpc" "main" {
 resource "aws_subnet" "subnet1" {
     vpc_id                  = aws_vpc.main.id
     cidr_block              = "10.0.1.0/24"
-    availability_zone       = "us-east-a"
+    availability_zone       = "us-east-1a"
     map_public_ip_on_launch = true
+}
+resource "aws_subnet" "subnet2" {
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "10.0.2.0/24"
+  availability_zone       = "us-east-1b"
+  map_public_ip_on_launch = true
 }
 resource "aws_security_group" "flask_sg" {
     name            = "flask_sg"
@@ -57,7 +63,7 @@ resource "aws_lb" "app_alb" {
     name = "flask-alb"
     internal =  false
     load_balancer_type = "application"
-    subnets = [aws_subnet.subnet1.id]
+    subnets = [aws_subnet.subnet1.id , aws_subnet.subnet2.id ]
     security_groups = [aws_security_group.flask_sg.id] 
 }
 resource "aws_lb_target_group" "blue_tg" {
@@ -91,4 +97,24 @@ resource "aws_lb_target_group_attachment" "green_attach" {
     target_group_arn = aws_lb_target_group.green_tg.arn
     target_id = aws_instance.green.id
     port = 80
+}
+resource "aws_internet_gateway" "igw" {
+  vpc_id = aws_vpc.main.id
+}
+resource "aws_route_table" "public_rt" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.igw.id
+  }
+}
+resource "aws_route_table_association" "a" {
+  subnet_id      = aws_subnet.subnet1.id
+  route_table_id = aws_route_table.public_rt.id
+}
+
+resource "aws_route_table_association" "b" {
+  subnet_id      = aws_subnet.subnet2.id
+  route_table_id = aws_route_table.public_rt.id
 }
