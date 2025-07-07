@@ -53,13 +53,13 @@ jobs:
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.SSH_KEY }}
         script: |
-          docker stop flask-container || true
-          docker rm flask-container || true
+          sudo docker stop flask-container || true
+          sudo docker rm flask-container || true
           rm -rf flask-app || true
           git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/OmkarSG07/devops-project-suite.git flask-app
           cd ~/project-ec2-flask/flask-app
-          docker build -t flask-image .
-          docker run -d -p 80:80 --name flask-container flask-image
+          sudo docker build -t flask-image .
+          sudo docker run -d -p 80:80 --name flask-container flask-image
 
     - name: Deploy to Green EC2
       uses: appleboy/ssh-action@master
@@ -68,10 +68,10 @@ jobs:
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.SSH_KEY }}
         script: |
-          docker stop flask-container || true
-          docker rm flask-container || true
+          sudo docker stop flask-container || true
+          sudo docker rm flask-container || true
           rm -rf flask-app || true
           git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/OmkarSG07/devops-project-suite.git flask-app
           cd ~/project-ec2-flask/flask-app
-          docker build -t flask-image .
-          docker run -d -p 80:80 --name flask-container flask-image
+          sudo docker build -t flask-image .
+          sudo docker run -d -p 80:80 --name flask-container flask-image
