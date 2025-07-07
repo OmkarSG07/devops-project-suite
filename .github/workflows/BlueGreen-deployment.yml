@@ -1,0 +1,73 @@
+name: Blue-Green Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Target environment (blue or green)"
+        required: true
+        default: "green"
+
+jobs:
+  deploy:
+    name: Deploy to Selected EC2
+    runs-on: ubuntu-latest
+
+    env:
+      BLUE_IP: ${{ secrets.BLUE_SERVER_IP }}
+      GREEN_IP: ${{ secrets.GREEN_SERVER_IP }}
+      USER: ${{ secrets.EC2_USER }}
+      KEY: ${{ secrets.SSH_KEY }}
+      REPO: OmkarSG07/devops-project-suite
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Deploy to Selected EC2
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ github.event.inputs.target == 'green' && secrets.GREEN_SERVER_IP || secrets.BLUE_SERVER_IP }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.SSH_KEY }}
+        script: |
+          sudo docker stop flask-container || true
+          sudo docker rm flask-container || true
+          rm -rf flask-app || true
+          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ env.REPO }}.git flask-app
+          cd flask-app/project-ec2-flask/flask-app
+          sudo docker build -t flask-image .
+          sudo docker run -d -p 80:80 --name flask-container flask-image
+
+    - name: Health check
+      run: |
+        IP=${{ github.event.inputs.target == 'green' && env.GREEN_IP || env.BLUE_IP }}
+        for i in {1..5}; do
+          if curl -s --head "http://$IP" | grep "200 OK" > /dev/null; then
+            echo "✅ Health check passed."
+            exit 0
+          else
+            echo "🔁 Retrying... ($i)"
+            sleep 5
+          fi
+        done
+        echo "❌ Health check failed."
+        exit 1
+
+    - name: Switch ALB traffic
+      if: success()
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+      run: |
+        if [ "${{ github.event.inputs.target }}" = "green" ]; then
+          TARGET_ARN=${{ secrets.TARGET_GROUP_GREEN_ARN }}
+        else
+          TARGET_ARN=${{ secrets.TARGET_GROUP_BLUE_ARN }}
+        fi
+
+        aws elbv2 modify-listener \
+          --listener-arn ${{ secrets.ALB_LISTENER_ARN }} \
+          --region $AWS_REGION \
+          --default-actions Type=forward,TargetGroupArn=$TARGET_ARN
