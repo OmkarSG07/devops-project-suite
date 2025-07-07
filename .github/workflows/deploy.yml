@@ -29,10 +29,10 @@ jobs:
         python -c "import app"
 
     - name: Build Docker Image
-      run: |
-        cd project-ec2-flask/flask-app
-        docker build -t flask-image .
-
+      uses: docker/build-push-action@v5
+      with:
+        context: ./project-ec2-flask/flask-app
+        tags: flask-image
     # Optional: Push to DockerHub
     - name: Login to DockerHub
       uses: docker/login-action@v2
@@ -41,10 +41,11 @@ jobs:
         password: ${{ secrets.DOCKER_PASSWORD }}
 
     - name: Push Docker Image to DockerHub
-      run: |
-        docker tag flask-image ${{ secrets.DOCKER_USERNAME }}/flask-image
-        docker push ${{ secrets.DOCKER_USERNAME }}/flask-image
-
+      uses: docker/build-push-action@v5
+      with:
+        context: ./project-ec2-flask/flask-app
+        tags: flask-image
+        
     - name: Deploy to Blue EC2
       uses: appleboy/ssh-action@master
       with:
@@ -55,7 +56,7 @@ jobs:
           docker stop flask-container || true
           docker rm flask-container || true
           rm -rf flask-app || true
-          git clone https://github.com/${{ github.repository }}.git flask-app
+          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/OmkarSG07/devops-project-suite.git flask-app
           cd ~/project-ec2-flask/flask-app
           docker build -t flask-image .
           docker run -d -p 80:80 --name flask-container flask-image
@@ -70,7 +71,7 @@ jobs:
           docker stop flask-container || true
           docker rm flask-container || true
           rm -rf flask-app || true
-          git clone https://github.com/${{ github.repository }}.git flask-app
+          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/OmkarSG07/devops-project-suite.git flask-app
           cd ~/project-ec2-flask/flask-app
           docker build -t flask-image .
           docker run -d -p 80:80 --name flask-container flask-image
