@@ -50,13 +50,13 @@ jobs:
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.SSH_KEY }}
         script: |
-          docker stop flask-container || true
-          docker rm flask-container || true
+          sudo docker stop flask-container || true
+          sudo docker rm flask-container || true
           rm -rf flask-app || true
           git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} flask-app
           cd flask-app/project-ec2-flask/flask-app
-          docker build -t flask-image .
-          docker run -d -p 80:80 --name flask-container flask-image
+          sudo docker build -t flask-image .
+          sudo docker run -d -p 80:80 --name flask-container flask-image
 
     - name: Health Check
       run: |
@@ -82,4 +82,3 @@ jobs:
           --listener-arn ${{ secrets.ALB_LISTENER_ARN }} \
           --region $AWS_REGION \
           --default-actions Type=forward,TargetGroupArn=$TARGET_GROUP
-
